@@ -1,3 +1,12 @@
+---
+title: img-proxy
+emoji: 🖼️
+colorFrom: blue
+colorTo: green
+sdk: docker
+pinned: false
+---
+
 # MangaDex Image/Auth Proxy
 
 Two small proxies for projects that need MangaDex data in a browser, README renderer, or hosted automation.
@@ -181,14 +190,3 @@ git push -u origin main
 ```
 
 Create the GitHub repository first if it does not exist yet.
-
-## Push To Hugging Face
-
-Use a Hugging Face token as a temporary environment variable. Replace `YOUR_TOKEN` with your real token when running the command.
-
-```powershell
-$env:HF_TOKEN = "YOUR_TOKEN"
-$basic = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("__token__:$env:HF_TOKEN"))
-git -c credential.helper= -c "http.https://huggingface.co/.extraheader=Authorization: Basic $basic" push https://huggingface.co/spaces/Apsiknb/image main
-Remove-Item Env:HF_TOKEN
-```
