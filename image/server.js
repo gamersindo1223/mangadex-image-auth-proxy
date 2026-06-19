@@ -174,8 +174,7 @@ function proxyFromCandidates({ candidates, requestId, requestMethod, response, e
 function upstreamHeaders() {
   return {
     Referer: "https://mangadex.org/",
-    "User-Agent":
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+    "User-Agent": "MangaDex-Image-Proxy/1.0 (+https://huggingface.co/spaces/Apsiknb/image)",
     Accept: "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
     "Accept-Language": "en-US,en;q=0.9,id;q=0.8",
     DNT: "1",
