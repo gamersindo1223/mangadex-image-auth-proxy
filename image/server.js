@@ -14,7 +14,7 @@ app.get("/healthz", (_req, res) => {
 });
 
 app.get("/*", (req, res) => {
-  const requestId = req.get("x-request-id") || randomUUID().slice(0, 8);
+  const requestId = cleanRequestId(req.get("x-request-id")) || randomUUID().slice(0, 8);
   let imagePath = req.params[0];
 
   if (!imagePath && req.query.url) {
@@ -50,7 +50,7 @@ app.get("/*", (req, res) => {
   proxyFromCandidates({
     candidates,
     requestId,
-    requestMethod: req.method,
+    clientMethod: req.method,
     response: res,
     errors: [],
   });
@@ -74,7 +74,15 @@ function normalizeImagePath(input) {
   return imagePath;
 }
 
-function proxyFromCandidates({ candidates, requestId, requestMethod, response, errors }) {
+function cleanRequestId(value) {
+  if (!value) {
+    return "";
+  }
+
+  return String(value).split(",")[0].trim();
+}
+
+function proxyFromCandidates({ candidates, requestId, clientMethod, response, errors }) {
   const [candidate, ...remainingCandidates] = candidates;
 
   if (!candidate) {
@@ -93,7 +101,7 @@ function proxyFromCandidates({ candidates, requestId, requestMethod, response, e
   const upstreamRequest = https.get(
     candidate.url,
     {
-      method: requestMethod,
+      method: "GET",
       timeout: UPSTREAM_TIMEOUT_MS,
       headers: upstreamHeaders(),
     },
@@ -119,30 +127,44 @@ function proxyFromCandidates({ candidates, requestId, requestMethod, response, e
         response.set("Content-Type", upstreamResponse.headers["content-type"] || "application/octet-stream");
         response.set("Cache-Control", "public, max-age=31536000, immutable");
 
+        if (clientMethod === "HEAD") {
+          upstreamResponse.resume();
+          response.status(200).end();
+          logEvent("info", requestId, "proxy response complete", {
+            label: candidate.label,
+            statusCode: response.statusCode,
+            clientMethod,
+          });
+          return;
+        }
+
         upstreamResponse.pipe(response);
         response.on("finish", () => {
           logEvent("info", requestId, "proxy response complete", {
             label: candidate.label,
             statusCode: response.statusCode,
+            clientMethod,
           });
         });
         return;
       }
 
       collectErrorBody(upstreamResponse, (bodySnippet) => {
+        const bodySummary = summarizeErrorBody(bodySnippet);
         const upstreamError = {
           label: candidate.label,
           url: candidate.url,
           status: statusCode,
           message: upstreamResponse.statusMessage,
           headers: responseHeaders,
+          bodySummary,
           bodySnippet,
         };
         logEvent("warn", requestId, "upstream non-200", upstreamError);
         proxyFromCandidates({
           candidates: remainingCandidates,
           requestId,
-          requestMethod,
+          clientMethod,
           response,
           errors: [...errors, upstreamError],
         });
@@ -164,7 +186,7 @@ function proxyFromCandidates({ candidates, requestId, requestMethod, response, e
     proxyFromCandidates({
       candidates: remainingCandidates,
       requestId,
-      requestMethod,
+      clientMethod,
       response,
       errors: [...errors, upstreamError],
     });
@@ -203,6 +225,16 @@ function collectErrorBody(stream, onDone) {
   stream.on("error", (err) => {
     onDone(`Failed to read upstream error body: ${err.message}`);
   });
+}
+
+function summarizeErrorBody(body) {
+  return String(body)
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 500);
 }
 
 function requestDetails(req) {
