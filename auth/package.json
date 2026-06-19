@@ -1,0 +1,17 @@
+{
+  "name": "mangadex-auth-cors-worker",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Cloudflare Worker CORS proxy for MangaDex auth/API setup flows.",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev worker.ts",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260617.0",
+    "typescript": "^5.8.3",
+    "wrangler": "^4.20.5"
+  }
+}
